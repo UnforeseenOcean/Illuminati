@@ -27,3 +27,4 @@ DWORD WINAPI redrawThread(LPVOID parameter);
 
 void findTriangles(Mat image, vector<vector<Point2f>> &triangles);
 unsigned int countChanges(char* x, char* y, size_t size);
+void takeWindowScreenshot(HWND window, HDC out);

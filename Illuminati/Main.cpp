@@ -78,21 +78,8 @@ DWORD WINAPI findTrianglesThread(LPVOID parameter) {
 	char *oldScreenshot = new char[rawDataSize];
 
 	for (;;) {
-		HWND activeWindow = GetForegroundWindow();
-		RECT rekt;
-		GetWindowRect(activeWindow, &rekt);
-
-		HDC windowScreenshotDC = CreateCompatibleDC(screenDC);
-		HBITMAP windowBitmap = CreateCompatibleBitmap(screenDC, rekt.right - rekt.left, rekt.bottom - rekt.top);
-		SelectObject(windowScreenshotDC, windowBitmap);
-
-		PrintWindow(activeWindow, windowScreenshotDC, 0);
-		
-		BitBlt(screenshotDC, 0, 0, w, h, NULL, 0, 0, WHITENESS);
-		BitBlt(screenshotDC, rekt.left, rekt.top, rekt.right - rekt.left, rekt.bottom - rekt.top, windowScreenshotDC, 0, 0, SRCCOPY);
-
-		DeleteDC(windowScreenshotDC);
-		DeleteObject(windowBitmap);
+		memcpy(oldScreenshot, screenshotPixelData, rawDataSize);
+		takeWindowScreenshot(GetForegroundWindow(), screenshotDC);
 
 		vector<vector<Point2f>> oldTriangles = triangles;
 		findTriangles(screenshotMat, triangles);
@@ -122,7 +109,6 @@ DWORD WINAPI findTrianglesThread(LPVOID parameter) {
 			block = false;
 		}
 
-		memcpy(oldScreenshot, screenshotPixelData, rawDataSize);
 		Sleep(100);
 	}
 
@@ -196,7 +182,7 @@ DWORD WINAPI redrawThread(LPVOID parameter) {
 					PlaySound(NULL, NULL, SND_NODEFAULT);
 			}
 
-			Sleep(10);
+			Sleep(100);
 		}
 
 		if (newTriangles.size() > 0) {

@@ -4,23 +4,21 @@ void findTriangles(Mat image, vector<vector<Point2f>> &triangles) {
 	triangles.clear();
 
 	Mat processingMat;
-	image.copyTo(processingMat);
-
-	blur(processingMat, processingMat, Size(2, 2));
+	bilateralFilter(image, processingMat, 2, 100, 2);
 
 	vector<Mat> channels;
 	split(processingMat, channels);
 	
 	Mat grayMat = Mat::zeros(image.rows, image.cols, CV_8UC1);
 
-	for (int i = 0; i < channels.size(); i++) {
+	for (int i = 0; i < 3; i++) {
 		Mat cannyMat = Mat::zeros(image.rows, image.cols, CV_8UC1);
-		Canny(channels[i], cannyMat, 100, 200);
+		Canny(channels[i], cannyMat, 230, 250);
 		grayMat |= cannyMat;
 	}
-
+	
 	vector<vector<Point>> contours;
-	findContours(grayMat, contours, RETR_TREE, CHAIN_APPROX_SIMPLE);
+	findContours(grayMat, contours, RETR_TREE, CHAIN_APPROX_TC89_KCOS);
 
 	Mat oldPoly = Mat::zeros(image.rows, image.cols, CV_8UC1);
 
@@ -40,7 +38,7 @@ void findTriangles(Mat image, vector<vector<Point2f>> &triangles) {
 				triangles.push_back(floatPoly);
 			}
 
-			oldPoly = polyMat;
+			oldPoly |= polyMat;
 		}
 	}
 }
@@ -55,4 +53,21 @@ unsigned int countChanges(char* x, char* y, size_t size) {
 	}
 
 	return changes;
+}
+
+void takeWindowScreenshot(HWND window, HDC out) {
+	RECT rekt;
+	GetWindowRect(window, &rekt);
+
+	HDC windowScreenshotDC = CreateCompatibleDC(out);
+	HBITMAP windowBitmap = CreateCompatibleBitmap(out, rekt.right - rekt.left, rekt.bottom - rekt.top);
+	SelectObject(windowScreenshotDC, windowBitmap);
+
+	PrintWindow(window, windowScreenshotDC, 0);
+
+	BitBlt(out, 0, 0, w, h, NULL, 0, 0, WHITENESS);
+	BitBlt(out, rekt.left, rekt.top, rekt.right - rekt.left, rekt.bottom - rekt.top, windowScreenshotDC, 0, 0, SRCCOPY);
+
+	DeleteDC(windowScreenshotDC);
+	DeleteObject(windowBitmap);
 }
