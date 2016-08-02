@@ -24,7 +24,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 DWORD WINAPI findTrianglesThread(LPVOID parameter);
 DWORD WINAPI redrawThread(LPVOID parameter);
-DWORD WINAPI addNewTrianglesThread(LPVOID parameter);
 
 void findTriangles(Mat image, vector<vector<Point2f>> &triangles);
 unsigned int countChanges(char* x, char* y, size_t size);

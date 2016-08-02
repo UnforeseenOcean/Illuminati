@@ -10,6 +10,7 @@ vector<vector<Point2f>> drawnTriangles;
 
 bool block = false;
 bool changed = false;
+bool removed = false;
 
 #ifdef _DEBUG
 int main(void) {
@@ -42,7 +43,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	CreateThread(NULL, 0, &findTrianglesThread, NULL, 0, NULL);
 	CreateThread(NULL, 0, &redrawThread, NULL, 0, NULL);
-	CreateThread(NULL, 0, &addNewTrianglesThread, NULL, 0, NULL);
 
 	MSG msg;
 	while (GetMessage(&msg, NULL, 0, 0) > 0) {
@@ -102,9 +102,10 @@ DWORD WINAPI findTrianglesThread(LPVOID parameter) {
 
 			for (int i = 0; i < oldTriangles.size(); i++) {
 				if (find(triangles.begin(), triangles.end(), oldTriangles[i]) == triangles.end()) {
+					removed = removed || find(drawnTriangles.begin(), drawnTriangles.end(), oldTriangles[i]) != drawnTriangles.end();
+
 					drawnTriangles.erase(remove(drawnTriangles.begin(), drawnTriangles.end(), oldTriangles[i]), drawnTriangles.end());
 					newTriangles.erase(remove(newTriangles.begin(), newTriangles.end(), oldTriangles[i]), newTriangles.end());
-					changed = true;
 				}
 			}
 
@@ -168,50 +169,49 @@ DWORD WINAPI redrawThread(LPVOID parameter) {
 	HDC drawTempDC = CreateCompatibleDC(windowDC);
 	SelectObject(drawTempDC, CreateCompatibleBitmap(windowDC, w, h));
 
+	BitBlt(drawTempDC, 0, 0, w, h, NULL, 0, 0, WHITENESS);
+
 	for (;;) {
-		while (block)
-			Sleep(10);
+		int time = GetTickCount();
 
-		if (changed) {
-			vector<vector<Point2f>> drawn = drawnTriangles;
+		while (GetTickCount() - time < 1200) {
+			if (!block && removed) {
+				vector<vector<Point2f>> drawn = drawnTriangles;
 
-			BitBlt(drawTempDC, 0, 0, w, h, NULL, 0, 0, WHITENESS);
+				BitBlt(drawTempDC, 0, 0, w, h, NULL, 0, 0, WHITENESS);
 
-			for (int i = 0; i < drawn.size(); i++) {
-				BitBlt(drawDC, 0, 0, w, h, NULL, 0, 0, WHITENESS);
+				for (int i = 0; i < drawn.size(); i++) {
+					BitBlt(drawDC, 0, 0, w, h, NULL, 0, 0, WHITENESS);
 
-				Mat affineMat = getAffineTransform(illuminatiTriangleVector, drawn[i]);
-				warpAffine(illuminatiImage, drawMat, affineMat, drawMat.size(), 1, BORDER_TRANSPARENT);
+					Mat affineMat = getAffineTransform(illuminatiTriangleVector, drawn[i]);
+					warpAffine(illuminatiImage, drawMat, affineMat, drawMat.size(), 1, BORDER_TRANSPARENT);
 
-				TransparentBlt(drawTempDC, 0, 0, w, h, drawDC, 0, 0, w, h, RGB(255, 255, 255));
+					TransparentBlt(drawTempDC, 0, 0, w, h, drawDC, 0, 0, w, h, RGB(255, 255, 255));
+				}
+
+				BitBlt(windowDC, 0, 0, w, h, drawTempDC, 0, 0, SRCCOPY);
+				removed = false;
+
+				if (drawn.size() == 0)
+					PlaySound(NULL, NULL, SND_NODEFAULT);
 			}
 
-			BitBlt(windowDC, 0, 0, w, h, drawTempDC, 0, 0, SRCCOPY);
-			changed = false;
+			Sleep(10);
 		}
 
-		Sleep(100);
-	}
-}
-
-DWORD WINAPI addNewTrianglesThread(LPVOID parameter) {
-	for (;;) {
 		if (newTriangles.size() > 0) {
 			PlaySound(MAKEINTRESOURCE(IDR_WAVE1), GetModuleHandle(NULL), SND_ASYNC | SND_RESOURCE);
 
-			drawnTriangles.push_back(newTriangles.back());
+			vector<Point2f> triangle = newTriangles.back();
+			drawnTriangles.push_back(triangle);
 			newTriangles.pop_back();
-			changed = true;
 
-			int time = GetTickCount();
-			while (GetTickCount() - time < 1400 && drawnTriangles.size() != 0) {
-				Sleep(100);
-			}
-		} else {
-			if (drawnTriangles.size() == 0)
-				PlaySound(NULL, NULL, SND_NODEFAULT);
+			BitBlt(drawDC, 0, 0, w, h, NULL, 0, 0, WHITENESS);
 
-			Sleep(100);
+			Mat affineMat = getAffineTransform(illuminatiTriangleVector, triangle);
+			warpAffine(illuminatiImage, drawMat, affineMat, drawMat.size(), 1, BORDER_TRANSPARENT);
+
+			TransparentBlt(windowDC, 0, 0, w, h, drawDC, 0, 0, w, h, RGB(255, 255, 255));
 		}
 	}
 }
